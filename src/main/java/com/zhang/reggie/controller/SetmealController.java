@@ -13,6 +13,8 @@ import com.zhang.reggie.service.SetmealService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,9 +29,6 @@ public class SetmealController {
     private SetmealService setmealService;
 
     @Autowired
-    private SetmealDishService setmealDishService;
-
-    @Autowired
     private CategoryService categoryService;
 
 
@@ -40,6 +39,7 @@ public class SetmealController {
      * @return
      */
     @PostMapping
+    @CacheEvict(value = "setmealCache",allEntries=true)
     public R<String> save(@RequestBody SetmealDto setmealDto) {
         setmealService.saveWithDish(setmealDto);
         return R.success("添加成功");
@@ -104,6 +104,7 @@ public class SetmealController {
      * @return
      */
     @PostMapping("status/{status}")
+    @CacheEvict(value = "setmealCache",allEntries=true)
     public R<String> upstatus(@PathVariable Integer status, Long[] ids) {
 
         for (Long id : ids) {
@@ -116,20 +117,16 @@ public class SetmealController {
 
     /**
      * （批量） 删除套餐,同时删除对应的套餐分类
-     *
      * @param ids
      * @return
      */
     @DeleteMapping
     public R<String> delete(Long[] ids) {
-
         for (Long id : ids) {
-
             Setmeal byId = setmealService.getById(id);
             Integer status = byId.getStatus();
             if (status == 0) {
                 setmealService.removeById(id);
-
                 //添加条件查询
                 LambdaQueryWrapper<Category> queryWrapper = new LambdaQueryWrapper<>();
                 queryWrapper.eq(Category::getId, id);
@@ -145,6 +142,7 @@ public class SetmealController {
      * 移动端查询套餐
      * @return
      */
+    @Cacheable(value = "setmealCache",key = "#setmeal.CategoryId + '_'+ #setmeal.Status")
     @GetMapping("/list")
     public R<List<Setmeal>> list(Setmeal setmeal){
         LambdaQueryWrapper<Setmeal> queryWrapper=new LambdaQueryWrapper<>();
